@@ -2,11 +2,6 @@
 ## ---------------------------------------------------------------
 #                           Check install
 ## ---------------------------------------------------------------
-- name: Check environment execution
-  shell: python -c "import docker; print docker.__version__"
-  register: default_dockerpy_version
-  failed_when: default_dockerpy_version.stdout is version('1.7',operator='lt') and not ansible_python_interpreter
-
 - name: Check installed version of docker PIP
   shell: pip show docker-py | grep -i version | awk -F" " '{print $2}'
   register: is_pip_docker_installed
@@ -34,6 +29,11 @@
     name: python-docker
     update_cache: yes
   when: ansible_os_family == 'Debian' and is_pip_docker_installed.stdout == '' and is_apt_docker_installed.stdout == ''
+  
+- name: Check environment execution
+  shell: python -c "import docker; print docker.__version__"
+  register: default_dockerpy_version
+  failed_when: default_dockerpy_version.stdout is version('1.7',operator='lt') and not ansible_python_interpreter
 
 ## ---------------------------------------------------------------
 #                           Clean
