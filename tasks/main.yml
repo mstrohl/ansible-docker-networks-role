@@ -1,0 +1,108 @@
+---
+## ---------------------------------------------------------------
+#                           Check install
+## ---------------------------------------------------------------
+- name: Check environment execution
+  shell: python -c "import docker; print docker.__version__"
+  register: default_dockerpy_version
+  failed_when: default_dockerpy_version.stdout is version('1.7',operator='lt') and not ansible_python_interpreter
+
+- name: Check installed version of docker PIP
+  shell: pip show docker-py | grep -i version | awk -F" " '{print $2}'
+  register: is_pip_docker_installed
+  ignore_errors: True
+
+- name: Check install python-docker YUM 
+  shell: rpm -q python-docker --info | grep -i version | awk -F" " '{print $2}'
+  register: is_yum_docker_installed
+  ignore_errors: True
+
+- name: Check installed version of python-docker APT 
+  shell: apt list --installed | grep python-docker | awk -F" " '{print $2}'
+  register: is_apt_docker_installed
+  ignore_errors: True
+
+- name: Install python-docker on Red Hat based distribution
+  yum:
+   name: python-docker
+   enablerepo: extras
+   state: latest
+  when: ansible_os_family == 'RedHat' and is_pip_docker_installed.stdout == '' and is_yum_docker_installed.stdout == ''
+
+- name: Install python-docker  on Debian based distribution
+  apt: 
+    name: python-docker
+    update_cache: yes
+  when: ansible_os_family == 'Debian' and is_pip_docker_installed.stdout == '' and is_apt_docker_installed.stdout == ''
+
+## ---------------------------------------------------------------
+#                           Clean
+## ---------------------------------------------------------------
+
+- name: clean up networks that are not used
+  shell: docker network ls | grep -i NAME | awk -F" " '{print $2}' # nasty, docker uses curly brackets too!
+  register: currently_present
+  changed_when: False
+
+- debug: var=currently_present
+  when: playbook_debug
+
+- name: determine which network to be present
+  set_fact:
+    should_be_present: "{{ docker_networks | map(attribute='name') | list | unique }}"
+
+- debug: var=should_be_present
+  when: playbook_debug
+
+- name: determine what instance will get removed
+  set_fact:
+    should_be_removed: "{{ currently_present.stdout_lines | difference(should_be_present) }}"
+
+- debug: var=should_be_removed
+  when: playbook_debug
+
+- name: remove unwanted networks
+  docker_network:
+    name: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ should_be_removed }}"
+  when: enable_remove_unwanted_networks
+
+## ---------------------------------------------------------------
+#                           Create
+## ---------------------------------------------------------------
+
+- name: Networks creation
+  docker_network:
+    name: "{{ docker_network.name }}"
+    appends: "{{ docker_network.appends | default(omit) }}"
+    connected: "{{ docker_network.connected | default(omit) }}"
+    driver: "{{ docker_network.driver | default(omit) }}"
+    state: "{{ docker_network.state | default(omit) }}"
+    force: "{{ docker_network.force | default(omit) }}"
+  loop_control:
+    loop_var: docker_network
+  with_items:
+    - "{{ docker_networks }}"
+
+## ---------------------------------------------------------------
+#                           Check & Report
+## ---------------------------------------------------------------
+
+- name: check container status
+  command: docker network ls
+  register: result
+
+- debug: var=result.stdout
+
+- name: Debug de chaque Network
+  shell: docker network inspect {{ docker_net.name }}
+  loop_control:
+    loop_var: docker_net
+  with_items:
+    - "{{ docker_networks }}"
+  register: debug_result
+  ignore_errors: True
+- debug: var=debug_result.results
+  when: playbook_debug
