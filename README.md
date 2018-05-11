@@ -5,6 +5,8 @@ It includes network's removal when not defined in the list
 
 ## Prerequisites
 
+Ansible >= 2.2
+
 python >= 2.6
 
 docker-py >= 1.7.0
