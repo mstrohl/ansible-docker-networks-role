@@ -30,10 +30,10 @@
     update_cache: yes
   when: ansible_os_family == 'Debian' and is_pip_docker_installed.stdout == '' and is_apt_docker_installed.stdout == ''
   
-- name: Check environment execution
+- name: Re-Check environment execution
   shell: python -c "import docker; print docker.__version__"
   register: default_dockerpy_version
-  failed_when: default_dockerpy_version.stdout is version('1.7',operator='lt') and not ansible_python_interpreter
+  failed_when: (not default_dockerpy_version.stdout and not ansible_python_interpreter) or (default_dockerpy_version.stdout is version('1.7',operator='lt') and not ansible_python_interpreter)
 
 ## ---------------------------------------------------------------
 #                           Clean
