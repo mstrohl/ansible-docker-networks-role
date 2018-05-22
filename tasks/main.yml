@@ -2,45 +2,17 @@
 ## ---------------------------------------------------------------
 #                           Check install
 ## ---------------------------------------------------------------
-- name: Check installed version of docker PIP
-  shell: pip show docker-py | grep -i version | awk -F" " '{print $2}'
-  register: is_pip_docker_installed
-  ignore_errors: True
 
-- name: Check install python-docker YUM 
-  shell: rpm -q python-docker --info | grep -i version | awk -F" " '{print $2}'
-  register: is_yum_docker_installed
-  ignore_errors: True
-
-- name: Check installed version of python-docker APT 
-  shell: apt list --installed | grep python-docker | awk -F" " '{print $2}'
-  register: is_apt_docker_installed
-  ignore_errors: True
-
-- name: Install python-docker on Red Hat based distribution
-  yum:
-   name: python-docker
-   enablerepo: extras
-   state: latest
-  when: ansible_os_family == 'RedHat' and is_pip_docker_installed.stdout == '' and is_yum_docker_installed.stdout == ''
-
-- name: Install python-docker  on Debian based distribution
-  apt: 
+- name: Install python-docker
+  package: 
     name: python-docker
-    update_cache: yes
-  when: ansible_os_family == 'Debian' and is_pip_docker_installed.stdout == '' and is_apt_docker_installed.stdout == ''
   
-- name: Re-Check environment execution
-  shell: python -c "import docker; print docker.__version__"
-  register: default_dockerpy_version
-  failed_when: (not default_dockerpy_version.stdout and not ansible_python_interpreter) or (default_dockerpy_version.stdout is version('1.7',operator='lt') and not ansible_python_interpreter)
-
 ## ---------------------------------------------------------------
 #                           Clean
 ## ---------------------------------------------------------------
 
 - name: clean up networks that are not used
-  shell: docker network ls | grep -i NAME | awk -F" " '{print $2}' # nasty, docker uses curly brackets too!
+  shell: "docker network ls '{{ '{{' }} .Name {{ '}}' }}'" # nasty, docker uses curly brackets too!
   register: currently_present
   changed_when: False
 
